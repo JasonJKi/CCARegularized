@@ -4,7 +4,7 @@ classdef CCA < handle
     
     properties
         params = CCAParams();
-        covMatrix = CCACovMatrix();
+        covMatrix = CovMatrix();
         
         % input data
         x
@@ -22,13 +22,19 @@ classdef CCA < handle
     methods
         
         function this = CCA(x,y)
+            addpath(genpath('../'))
+            
             % Set
             setHyperParams(this, size(x,2), size(y,2))
             
             % Normalize train data and assign zero mean (while ignoring nan values).
             [this.x, this.y] = normalize(this, x, y);           
-            [rxy, rxx, ryy, ryx] = this.computeNanCov(this.x, this.y);
-            this.covMatrix.set(rxy, rxx, ryy, ryx)
+            
+        end
+        
+        function computeCov(this)
+            [rxx, ryy, rxy, ryx] = this.computeNanCov(this.x, this.y);
+            this.covMatrix.set(rxx, ryy, rxy, ryx)
         end
         
         function [x, y] = normalize(this, x, y)
@@ -55,7 +61,7 @@ classdef CCA < handle
         function [A, B] = computeMaximizedCorrComponents(this)
             [kx, ky, d] = getHyperParams(this);
 
-            [rxy, rxx, ryy, ryx] = this.covMatrix.get();
+            [rxx, ryy, rxy, ryx] = this.covMatrix.get();
             
             [rxxRegSqrtInvs, ryyRegInvs, ryyRegSqrtInvs] = this.regularizedInverseCov(rxx, ryy, kx, ky);
             
@@ -71,10 +77,13 @@ classdef CCA < handle
             B = ryyRegSqrtInvs * D;
         end
         
-        function [rho p] = fit(this, x, y, A, B)
-            if nargin < 1
+        function [rho, p] = fit(this, x, y, A, B)
+            if nargin < 2
                 x = this.x;
                 y = this.y;
+            end
+            
+            if nargin < 4
                 A = this.A;
                 B = this.B;
             end
@@ -120,17 +129,18 @@ classdef CCA < handle
             B = this.B;
         end
         
-        function output = compute(this)
+        function compute(this)
+            computeCov(this)
             [this.A, this.B] = computeMaximizedCorrComponents(this);
-            output = fit(this, this.x, this.y, this.A, this.B);
+            fit(this, this.x, this.y, this.A, this.B);
         end
         
     end
     
     methods (Static)
         
-        function [rxy, rxx, ryy, ryx] = computeNanCov(x, y)
-            [rxy, rxx, ryy, ryx] = nanRXY(x, y);
+        function [rxx, ryy, rxy, ryx]  = computeNanCov(x, y)
+            [rxx, ryy, rxy, ryx] = nanRXY(x, y);
         end
         
         function [U, V] = computeComponents(x, y, A, B)
@@ -149,8 +159,8 @@ classdef CCA < handle
             if nargin < 2
                 eigValThresh = 0.99;
             end
-            [~, l] = eig(rxx);
-            numComponent = find(cumsum(diag(l)) > eigValThresh,1);
+            [v, d] = eig(rxx);
+            numComponent = find(cumsum(diag(d)/sum(diag(d))) > eigValThresh,1);
         end
        
         
