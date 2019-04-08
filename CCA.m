@@ -3,7 +3,7 @@ classdef CCA < handle
     %   Detailed explanation goes here
     
     properties
-        params = CCAParams();
+        params = Params();
         covMatrix = CovMatrix();
         
         % input data
@@ -21,19 +21,12 @@ classdef CCA < handle
     
     methods
         
-        function this = CCA(x,y)
-            addpath(genpath('../'))
-            
-            % Set
-            setHyperParams(this, size(x,2), size(y,2))
-            
-            % Normalize train data and assign zero mean (while ignoring nan values).
-            [this.x, this.y] = normalize(this, x, y);           
-            
+        function this = CCA(params)
+            this.params = params;          
         end
         
-        function computeCov(this)
-            [rxx, ryy, rxy, ryx] = this.computeNanCov(this.x, this.y);
+        function computeCov(this, x, y)
+            [rxx, ryy, rxy, ryx] = this.computeNanCov(x, y);
             this.covMatrix.set(rxx, ryy, rxy, ryx)
         end
         
@@ -42,26 +35,10 @@ classdef CCA < handle
             y = this.nanMeanNormalization(y);
         end
         
-        function setHyperParams(this, kx, ky)
-            this.params.kx = kx;
-            this.params.ky = ky;
-            setMinDim(this, kx, ky)         
-        end
+        function [A, B] = computeMaximizedCorrComponents(this, covMatrix, params)
+            [kx, ky, d] = params.get();
 
-        function [kx, ky, d] = getHyperParams(this)
-            kx = this.params.kx;
-            ky = this.params.ky;
-            d = this.params.d;
-        end
-        
-        function setMinDim(this,kx,ky)
-            this.params.d = min(kx, ky);
-        end
-        
-        function [A, B] = computeMaximizedCorrComponents(this)
-            [kx, ky, d] = getHyperParams(this);
-
-            [rxx, ryy, rxy, ryx] = this.covMatrix.get();
+            [rxx, ryy, rxy, ryx] = covMatrix.get();
             
             [rxxRegSqrtInvs, ryyRegInvs, ryyRegSqrtInvs] = this.regularizedInverseCov(rxx, ryy, kx, ky);
             
@@ -77,23 +54,22 @@ classdef CCA < handle
             B = ryyRegSqrtInvs * D;
         end
         
-        function [rho, p] = fit(this, x, y, A, B)
-            if nargin < 2
-                x = this.x;
-                y = this.y;
-            end
-            
+        function [rho, p] = predict(this, x, y, A, B)
             if nargin < 4
                 A = this.A;
                 B = this.B;
             end
             
+            x = this.noNan(x);
+            y = this.noNan(y);
             [U, V] = this.computeComponents(x, y, A, B);
             
             setComponents(this, U, V);
             
-            [rho, p] = computeCorrelation( U, V);
+            [rho, p] = computeCorrelation(U, V);
         end
+        
+
         
         function [U, V] = getComponents(this)
             U = this.U;
@@ -129,10 +105,11 @@ classdef CCA < handle
             B = this.B;
         end
         
-        function compute(this)
-            computeCov(this)
-            [this.A, this.B] = computeMaximizedCorrComponents(this);
-            fit(this, this.x, this.y, this.A, this.B);
+        function fit(this, x, y)
+             % Normalize train data and assign zero mean (while ignoring nan values).
+            [x, y] = normalize(this, x, y);           
+            computeCov(this, x, y)
+            [this.A, this.B] = computeMaximizedCorrComponents(this, this.covMatrix, this.params);
         end
         
     end
@@ -167,6 +144,11 @@ classdef CCA < handle
         function x = nanMeanNormalization(x)
             n = size(x,1); % n - number of samples
             x = x - repmat(nanmean(x,1), n, 1);
+        end
+        
+        function x = noNan(x)
+            nanInd = isnan(x);
+            x(nanInd) = 0;
         end
         
     end

@@ -26,16 +26,14 @@ xTest = x;
 
 % Create a estimator to perform stimulus response correlation.
 kx = 10; ky = 10;
-ccaEstimator = CCA(xTrain, yTrain);
-ccaEstimator.setHyperParams(kx,ky);
-ccaEstimator.compute();
-
-[rhos, p] = ccaEstimator.fit(xTest, yTest);
+model = CCA(Params(kx, ky));
+model.fit(xTrain, yTrain);
+[rhos, p] = model.predict(xTest, yTest);
 
 % Compute EEG forward model.
-w = ccaEstimator.B; % Spatial Weight
-h = ccaEstimator.A;
-ryy = ccaEstimator.covMatrix.ryy;
+w = model.B; 
+h = model.A;
+ryy = model.covMatrix.ryy;
 A = forwardModel(w, ryy);
 
 % Draw the forward model and temporal filter.
