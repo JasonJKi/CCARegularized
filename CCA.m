@@ -22,7 +22,7 @@ classdef CCA < handle
     methods
         
         function this = CCA(params)
-            this.params = params;          
+            this.params = params.this();          
         end
         
         function computeCov(this, x, y)

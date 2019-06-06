@@ -11,10 +11,11 @@ classdef Params < handle
             if nargin < 1
                 return
             end
-            set(this, kx, ky)            
+            set(this, kx, ky);            
         end
-        
-        function set(this, kx, ky)
+        function this = this(this)
+        end
+        function this = set(this, kx, ky)
             this.kx = kx;
             this.ky = ky;
             setMinDim(this, kx, ky)         
